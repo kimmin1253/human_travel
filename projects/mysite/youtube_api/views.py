@@ -1,21 +1,10 @@
 from django.shortcuts import render
-from .models import YouTubeVideo
-from .utils import parse_srt_captions
-
+from youtube_api.models import YouTubeVideo
 
 def video_list(request):
     """
-    저장된 동영상 정보를 웹페이지에 표시합니다.
+    저장된 동영상 리스트를 불러와 HTML로 렌더링.
     """
-    videos_with_captions = []
+    videos = YouTubeVideo.objects.filter(captions__isnull=False)  # ✅ 자막이 있는 것만 필터링
 
-    # 동영상 데이터와 파싱된 자막 준비
-    videos = YouTubeVideo.objects.all()
-    for video in videos:
-        parsed_captions = parse_srt_captions(video.captions)  # 자막 파싱
-        videos_with_captions.append({
-            "video": video,
-            "captions": parsed_captions
-        })
-
-    return render(request, 'video_list.html', {'videos_with_captions': videos_with_captions})
+    return render(request, "video_list.html", {"videos": videos})  # ✅ 변경된 경로 반영
