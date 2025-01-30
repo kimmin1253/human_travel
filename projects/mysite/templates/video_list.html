@@ -103,6 +103,14 @@
 </head>
 <body>
     <h1>자막 포함 YouTube 동영상</h1>
+    <!-- 🔍 검색 폼 -->
+    <div class="search-container">
+        <form method="GET" action="{% url 'search_videos' %}">
+            <input type="text" name="q" class="search-input" placeholder="검색어를 입력하세요..." required>
+            <button type="submit" class="search-button">검색</button>
+        </form>
+    </div>
+    
     {% for video in videos %}
     <div class="container">
         <!-- 동영상 영역 -->
