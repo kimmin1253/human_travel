@@ -5,35 +5,39 @@ import re
 
 
 # YouTube API 설정
-API_KEY = '자기꺼 api'
+API_KEY = 'AIzaSyDgys8eFKRtcGCtyBXgck4J5MosXzeAPgQ'
 youtube = build('youtube', 'v3', developerKey=API_KEY)
 
-def search_videos_with_captions(query, max_results=5):
+def search_videos_with_captions(query, max_results=50, page_token=None):
     """
-    YouTube API로 자막이 포함된 동영상을 검색합니다.
+    YouTube API로 자막이 포함된 동영상을 검색합니다. (페이지네이션 추가)
     """
     try:
         search_response = youtube.search().list(
             q=query,
-            part='snippet',
-            type='video',
-            videoCaption='closedCaption',
-            maxResults=max_results
+            part="snippet",
+            type="video",
+            videoCaption="closedCaption",
+            maxResults=max_results,
+            pageToken=page_token  # ✅ 페이지네이션 추가
         ).execute()
 
         videos = []
-        for item in search_response['items']:
-            video_data = {
-                'title': item['snippet']['title'],
-                'video_id': item['id']['videoId'],
-                'description': item['snippet']['description'],
-                'published_date': item['snippet']['publishedAt'],
-            }
-            videos.append(video_data)
-        return videos
+        next_page_token = search_response.get("nextPageToken")  # ✅ 다음 페이지 토큰 저장
+
+        for item in search_response.get("items", []):
+            videos.append({
+                "title": item["snippet"]["title"],
+                "video_id": item["id"]["videoId"],
+                "description": item["snippet"]["description"],
+                "published_date": item["snippet"]["publishedAt"],
+            })
+
+        return videos, next_page_token  # ✅ (영상 목록, 다음 페이지 토큰) 반환
+
     except Exception as e:
-        print(f"Error: {e}")
-        return []
+        print(f"Error fetching YouTube videos: {e}")
+        return [], None  # 에러 발생 시 빈 리스트 반환
 
 def save_video_and_captions(video_data):
     """
@@ -46,7 +50,7 @@ def save_video_and_captions(video_data):
         # 자막 다운로드
         captions = None
         if yt.captions:
-            caption = yt.captions.get_by_language_code('en')  # 영어 자막
+            caption = yt.captions.get_by_language_code('ko')  
             if caption:
                 captions = caption.generate_srt_captions()
 

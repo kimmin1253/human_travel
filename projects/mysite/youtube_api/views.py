@@ -7,11 +7,49 @@ from django.core.paginator import Paginator
 
 def video_list(request):
     """
-    저장된 동영상 리스트를 불러와 HTML로 렌더링.
+    저장된 모든 동영상 리스트를 불러와 HTML로 렌더링 (타임스탬프 변환 추가).
     """
-    videos = YouTubeVideo.objects.filter(captions__isnull=False)  # ✅ 자막이 있는 것만 필터링
+    videos = YouTubeVideo.objects.filter(captions__isnull=False)  # ✅ 자막 있는 동영상만 가져오기
+    
+    video_data = []  # ✅ 가공된 데이터 저장할 리스트
 
-    return render(request, "video_list.html", {"videos": videos})  # ✅ 변경된 경로 반영
+    for video in videos:
+        matched_captions = []
+        captions = video.captions.split("\n")  # 자막을 줄 단위로 분할
+
+        for i in range(len(captions)):
+            line = captions[i]
+
+            if "-->" in line:  # ✅ 타임스탬프 줄이면 처리
+                timestamp = line.split("-->")[0].strip()  # 시작 시간 추출
+                try:
+                    seconds = float(timestamp)
+                    formatted_time = format_timestamp(int(seconds))  # 🔹 hh:mm:ss 변환
+                except ValueError:
+                    seconds = 0
+                    formatted_time = "00:00:00"
+                continue  # ✅ 실제 텍스트가 있는 줄로 이동
+
+            if line.strip():  # ✅ 빈 줄이 아닌 경우만 저장
+                matched_captions.append({
+                    "time": formatted_time,  # ✅ 변환된 hh:mm:ss 포맷
+                    "seconds": int(seconds),  # 초 단위
+                    "text": line.strip()  # ✅ 실제 자막 텍스트
+                })
+
+        video_data.append({
+            "video_id": video.video_id,
+            "title": video.title,
+            "captions": matched_captions  # ✅ 변환된 자막 포함
+        })
+
+    # ✅ 페이지네이션 적용
+    paginator = Paginator(video_data, 5)  
+    page_number = request.GET.get("page")  
+    page_obj = paginator.get_page(page_number)  
+
+    return render(request, "video_list.html", {"page_obj": page_obj})
+
 
 def search_videos(request):
     """

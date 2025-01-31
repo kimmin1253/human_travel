@@ -106,13 +106,27 @@ def fetch_and_save_videos():
         else:
             print(f"❌ No captions available for {video.video_id}\n")
 
-def fetch_and_save_new_videos(query="부산 여행", max_results=100):
+def fetch_and_save_new_videos(query="부산 여행", max_results=300):
     """
     YouTube API에서 새로운 영상을 검색하고 DB에 추가 후 자막을 다운로드.
-    자막이 있는 영상만 필터링하여 저장.
+    자막이 있는 영상만 필터링하여 저장. 페이지 토큰을 활용해 50개 이상 가져옴.
     """
     print(f"🔍 Searching YouTube for '{query}' with captions only...")
-    video_results = search_videos_with_captions(query, max_results=max_results)  # ✅ 자막 포함된 영상만 검색
+
+    video_results = []
+    next_page_token = None
+
+    while len(video_results) < max_results:
+        remaining = max_results - len(video_results)
+        new_videos, next_page_token = search_videos_with_captions(query, max_results=min(50, remaining), page_token=next_page_token)
+
+        if not new_videos:
+            break  # 더 이상 가져올 데이터가 없으면 중단
+
+        video_results.extend(new_videos)
+
+        if not next_page_token:
+            break  # 다음 페이지가 없으면 중단
 
     if not video_results:
         print(f"❌ No videos found for '{query}'.")
@@ -123,12 +137,12 @@ def fetch_and_save_new_videos(query="부산 여행", max_results=100):
 
         # ✅ DB에 없는 경우에만 새로 저장
         video, created = YouTubeVideo.objects.get_or_create(
-            video_id=video_data['video_id'],
+            video_id=video_data["video_id"],
             defaults={
-                'title': video_data['title'],
-                'description': video_data['description'],
-                'captions': None,  # 기본값 None
-                'published_date': video_data['published_date'],
+                "title": video_data["title"],
+                "description": video_data["description"],
+                "captions": None,  # 기본값 None
+                "published_date": video_data["published_date"],
             }
         )
 
@@ -146,8 +160,10 @@ def fetch_and_save_new_videos(query="부산 여행", max_results=100):
         else:
             print(f"❌ No captions available for {video.video_id} (Skipping)")
 
+    print(f"🎉 Fetching complete! Total new videos added: {len(video_results)}")
+
 # ✅ 실행
 if __name__ == "__main__":
     search_query = "부산 여행"  # 🔍 검색어 설정
-    fetch_and_save_new_videos(search_query, max_results=100)  # ✅ 새로운 영상 100개 추가
+    fetch_and_save_new_videos(search_query, max_results=300)  # ✅ 새로운 영상 300개 추가
     fetch_and_save_videos()  # ✅ 기존 영상 자막 업데이트
